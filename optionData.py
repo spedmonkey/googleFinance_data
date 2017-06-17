@@ -15,14 +15,15 @@ class optionsData(object):
         df = self.removeData(df)
         df = self.calcStrikePrice(df)
         df = self.sepCallPuts(df)
+        df = self.editData(df)
         self.writeDataFrame(df)
 
     #Function to get stock price from google finance
     def getStockPrice(self,stock):
         start = date.today() - timedelta(7)
         end= datetime.datetime.today().strftime('%Y-%m-%d')
-        aapl = data.DataReader(stock, "google", start, end)
-        stockPrice = aapl.iloc[[-1]]['Close'].values[0]
+        stockData = data.DataReader(stock, "google", start, end)
+        stockPrice = stockData.iloc[[-1]]['Close'].values[0]
         return stockPrice
 
     #Get option data from yahoo finance
@@ -53,16 +54,21 @@ class optionsData(object):
         dfCall=df
         dfPut=df
 
-        print type(dfPut)
-        print type(dfCall)
         for index, row in df.iterrows():
             if df['Type'][index] == 'call':
                 dfPut = dfPut.drop([index], axis=0)
             else:
                 dfCall = dfCall.drop([index], axis=0)
 
-        df = pd.concat([dfCall, dfPut], axis=1, ignore_index=True)
-        #print dfCall
+        dfPut = dfPut.reset_index()
+        dfCall = dfCall.reset_index()
+        dfPut=dfPut.drop(['index'], axis=1)
+        dfCall=dfCall.drop(['index'], axis=1)
+        df = pd.concat([dfCall, dfPut], axis=1)
+        return df
+
+    def editData(self, df):
+        df =df[:4]
         return df
 
     #Write Data to excel spreadsheet
