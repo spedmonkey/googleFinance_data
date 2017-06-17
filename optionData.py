@@ -5,6 +5,7 @@ from datetime import date, timedelta
 from pandas_datareader.data import Options
 import datetime
 
+
 #Function to get stock price from google finance
 def getStockPrice(stock):
     start = date.today() - timedelta(7)
@@ -16,39 +17,24 @@ def getStockPrice(stock):
     return stockPrice
 
 
+#Get option data from yahoo finance
+def getOptionsData(optionIndex):
+    optionIndex = Options(optionIndex, 'yahoo')
+    data = optionIndex.get_all_data()
+    data = data.reset_index()
+    data= data.sort_values(['Expiry'], ascending=[False])
+    return data
+
+
+#Write Data to excel spreadsheet
+def writeDataFrame(df):
+    writer = pd.ExcelWriter(
+        'C:/Users/sped\PycharmProjects/cboeData/output.xlsx')
+    df.to_excel(writer, 'Sheet1')
+    writer.save()
+    print 'data written'
+
+
 stockPrice = getStockPrice("AAPL")
-
-
-aapl = Options('AAPL', 'yahoo')
-data = aapl.get_all_data()
-data = data.reset_index()
-
-
-print type (list(data))
-print list(data.columns.values)
-
-#Print statements:
-#print list(data)
-#print data.sort_values(ascending=True)
-#print data.head()
-#print list(data)
-#print len(list(data))
-#print data.head()
-
-
-getStockPrice("APPL")
-data=data.sort_values(['Expiry'], ascending=[False])
-
-#data=data.iloc[0:4]
-#data=data.drop(['IsNonstandard','Underlying','Underlying_Price'], axis=1)
-#data=data.drop(data.columns[0], axis=1)
-
-#Print statements:
-#print data.columns[1]
-#printdata.sort_values(['Last'], ascending=[True])
-#print data
-
-
-writer = pd.ExcelWriter('C:/Users/sped\PycharmProjects/cboeData/output.xlsx')
-data.to_excel(writer,'Sheet1')
-writer.save()
+df = getOptionsData("AAPL")
+writeDataFrame(df)
