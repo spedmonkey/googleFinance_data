@@ -7,11 +7,16 @@ import datetime
 
 class optionsData(object):
     def __init__(self):
-        stockPrice = self.getStockPrice("AAPL")
+        self.removeDataList=['Symbol','Chg','PctChg','IV','Root',
+                             'IsNonstandard','Underlying','Underlying_Price',
+                             'Quote_Time','Last_Trade_Date','JSON']
+        self.stockPrice = self.getStockPrice("AAPL")
         df = self.getOptionsData("AAPL")
-        df = self.calcStrikePrice(stockPrice, df)
+        df = self.removeData(df)
+        df = self.calcStrikePrice(df)
         df = self.sepCallPuts(df)
         self.writeDataFrame(df)
+
     #Function to get stock price from google finance
     def getStockPrice(self,stock):
         start = date.today() - timedelta(7)
@@ -23,32 +28,41 @@ class optionsData(object):
     #Get option data from yahoo finance
     def getOptionsData(self,optionIndex):
         optionIndex = Options(optionIndex, 'yahoo')
-
         data = optionIndex.get_all_data()
         data = data.reset_index()
-
         data= data.sort_values(['Expiry'], ascending=[True])
         data = data.reset_index()
-
-
         data=data.drop(['index'], axis=1)
-
-        print list(data)
         return data
 
+    def removeData(self, df):
+        for i in self.removeDataList:
+            df=df.drop([i], axis=1)
+        return df
+
     #Calculate whether strike price is within 0.15%+- of stock price
-    def calcStrikePrice(self,stockPrice, df):
+    def calcStrikePrice(self, df):
         for index, row in df.iterrows():
-            if not stockPrice-0.15*stockPrice < row['Strike']<1.15*stockPrice:
+            if not self.stockPrice-0.15*self.stockPrice < row[
+                'Strike']<1.15*self.stockPrice:
                 df = df.drop([index], axis=0)
         return df
 
     #Divide Call and Puts
-    def sepCallPuts(self,df):
+    def sepCallPuts(self, df):
+        dfCall=df
+        dfPut=df
+
+        print type(dfPut)
+        print type(dfCall)
         for index, row in df.iterrows():
             if df['Type'][index] == 'call':
-                print df['Type'][index]
-                df=df.drop([index], axis=0)
+                dfPut = dfPut.drop([index], axis=0)
+            else:
+                dfCall = dfCall.drop([index], axis=0)
+
+        df = pd.concat([dfCall, dfPut], axis=1, ignore_index=True)
+        #print dfCall
         return df
 
     #Write Data to excel spreadsheet
