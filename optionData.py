@@ -44,7 +44,6 @@ class optionsData(object):
             if df.loc[(df['Strike'] == i[3]) & (df['Type'] == "put")].empty:
                 continue
 
-
             row1=df.loc[(df['Strike'] == i[0]) & (df['Type'] =="call")]
             row2=df.loc[(df['Strike'] == i[1]) & (df['Type'] == "call")]
             row3=df.loc[(df['Strike'] == i[2]) & (df['Type'] == "put")]
@@ -61,57 +60,11 @@ class optionsData(object):
                 continue
             fullDf = pd.concat([fullDf, myDf], axis=1)
 
-            #print df.loc[(df['Strike'] == i[2]) & (df['Type'] == "put")]
-            #print df.loc[(df['Strike'] == i[3]) & (df['Type'] == "put")]
-            #df1.loc[df2.index[0]] = df2.iloc[0]
-            #print df.loc[(df['Strike'] == i[0]) & (df['Type'] =="call")]
-            '''
-            if df.loc[(df['Strike'] == i[0]) & (df['Type'] =="call")].empty \
-                    or df.loc[(df['Strike'] == i[1]) & (df['Type'] ==
-                                                            "call")].empty or\
-                    df.loc[(df['Strike'] == i[2]) & (df['Type'] ==
-                                                         "call")].empty or\
-                    df.loc[(df['Strike'] == i[3]) & (df['Type'] == "call")].empty:
 
-            else:
-                print 'win'
-                #myDf.append(row, ignore_index=True)
-            '''
-            #df.loc[(df['Strike'] == i[1]) & (df['Type'] =="call")],
-            #df.loc[(df['Strike'] == i[2]) & (df['Type'] =="put")],
-            #df.loc[(df['Strike'] == i[3]) & (df['Type'] =="put")]
-
-        #for i in myList:
-        #    print i
-        #myDf = pd.DataFrame(data=data)
-        #print myDf.columns
-        #print myDf.index
         print myDf.values
         print fullDf.values
         self.writeDataFrame(fullDf)
-        #print df.values
-                #strikeCall = df.loc[df['Strike'] == z) & (df['Type']=="call")]
-                #print strikeCall
-                #fprint type (strikeCall)
-                #myDf.append(strikeCall, ignore_index=True)
 
-            #df1=df.loc[(df['Strike'] == combinations[0]) & (df['Type'] =="call")]
-            #df2=df.loc[(df['Strike'] == 151) & (df['Type'] == "call")]
-            #tst = df.loc[(df['Strike'] == 150) & (df['Type'] == "call")]
-            #print tst
-            #print df.loc[(df['Strike'] == 150) ]
-            #df1.append(df2, ignore_index=True)
-            #print df1
-            #for z in i[-2:]:
-            #    strikePut = df.loc[
-            #        (df['Strike'] == z) & (df['Type']=="put")]
-            #    myDf.append(strikePut, ignore_index=True)
-        #print strikePut
-        #print myDf
-        #
-        #print myDf
-        #print type(myDf)
-        #print myDf
     #create all combinations for bodySpread
     def createCombinations(self):
         body = range(1,50)
