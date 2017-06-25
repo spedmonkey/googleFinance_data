@@ -6,17 +6,127 @@ from pandas_datareader.data import Options
 import datetime
 
 class optionsData(object):
+    #Run all functions on instance creation
     def __init__(self):
         self.removeDataList=['Symbol','Chg','PctChg','IV','Root',
                              'IsNonstandard','Underlying','Underlying_Price',
-                             'Quote_Time','Last_Trade_Date','JSON']
+                             'Quote_Time','Last_Trade_Date','JSON','Bid',
+                             'Ask','Vol','Open_Int']
         self.stockPrice = self.getStockPrice("AAPL")
         df = self.getOptionsData("AAPL")
         df = self.removeData(df)
         df = self.calcStrikePrice(df)
-        df = self.sepCallPuts(df)
-        df = self.editData(df)
-        self.writeDataFrame(df)
+
+        print (type(df))
+        print int( self.getStockPrice("AAPL"))
+
+        #group by type
+        df=df.groupby(by=['Expiry'])
+
+
+        df = df.get_group('2017-06-30 00:00:00')
+
+        combinations=self.createCombinations()
+        #print combinations
+        myList=[]
+        myDf = pd.DataFrame(columns=df.columns)
+        fullDf = pd.DataFrame(columns=df.columns)
+        #print myDf
+        print combinations
+        #print df.values
+        for i in combinations:
+            if df.loc[(df['Strike'] == i[0]) & (df['Type'] == "call")].empty:
+                continue
+            if df.loc[(df['Strike'] == i[1]) & (df['Type'] == "call")].empty:
+                continue
+            if df.loc[(df['Strike'] == i[2]) & (df['Type'] == "put")].empty:
+                continue
+            if df.loc[(df['Strike'] == i[3]) & (df['Type'] == "put")].empty:
+                continue
+
+
+            row1=df.loc[(df['Strike'] == i[0]) & (df['Type'] =="call")]
+            row2=df.loc[(df['Strike'] == i[1]) & (df['Type'] == "call")]
+            row3=df.loc[(df['Strike'] == i[2]) & (df['Type'] == "put")]
+            row4=df.loc[(df['Strike'] == i[3]) & (df['Type'] == "put")]
+
+            #print row1
+            #print row2
+            #print row3
+            #print row4
+
+            myDf = pd.concat([row1,row2,row3,row4], ignore_index=True)
+            if fullDf.empty:
+                fullDf = myDf
+                continue
+            fullDf = pd.concat([fullDf, myDf], axis=1)
+
+            #print df.loc[(df['Strike'] == i[2]) & (df['Type'] == "put")]
+            #print df.loc[(df['Strike'] == i[3]) & (df['Type'] == "put")]
+            #df1.loc[df2.index[0]] = df2.iloc[0]
+            #print df.loc[(df['Strike'] == i[0]) & (df['Type'] =="call")]
+            '''
+            if df.loc[(df['Strike'] == i[0]) & (df['Type'] =="call")].empty \
+                    or df.loc[(df['Strike'] == i[1]) & (df['Type'] ==
+                                                            "call")].empty or\
+                    df.loc[(df['Strike'] == i[2]) & (df['Type'] ==
+                                                         "call")].empty or\
+                    df.loc[(df['Strike'] == i[3]) & (df['Type'] == "call")].empty:
+
+            else:
+                print 'win'
+                #myDf.append(row, ignore_index=True)
+            '''
+            #df.loc[(df['Strike'] == i[1]) & (df['Type'] =="call")],
+            #df.loc[(df['Strike'] == i[2]) & (df['Type'] =="put")],
+            #df.loc[(df['Strike'] == i[3]) & (df['Type'] =="put")]
+
+        #for i in myList:
+        #    print i
+        #myDf = pd.DataFrame(data=data)
+        #print myDf.columns
+        #print myDf.index
+        print myDf.values
+        print fullDf.values
+        self.writeDataFrame(fullDf)
+        #print df.values
+                #strikeCall = df.loc[df['Strike'] == z) & (df['Type']=="call")]
+                #print strikeCall
+                #fprint type (strikeCall)
+                #myDf.append(strikeCall, ignore_index=True)
+
+            #df1=df.loc[(df['Strike'] == combinations[0]) & (df['Type'] =="call")]
+            #df2=df.loc[(df['Strike'] == 151) & (df['Type'] == "call")]
+            #tst = df.loc[(df['Strike'] == 150) & (df['Type'] == "call")]
+            #print tst
+            #print df.loc[(df['Strike'] == 150) ]
+            #df1.append(df2, ignore_index=True)
+            #print df1
+            #for z in i[-2:]:
+            #    strikePut = df.loc[
+            #        (df['Strike'] == z) & (df['Type']=="put")]
+            #    myDf.append(strikePut, ignore_index=True)
+        #print strikePut
+        #print myDf
+        #
+        #print myDf
+        #print type(myDf)
+        #print myDf
+    #create all combinations for bodySpread
+    def createCombinations(self):
+        body = range(1,50)
+        wing = range(1,4)
+        stockPrice= int(self.getStockPrice("AAPL"))
+        spreadList = []
+
+        # calculating calls
+        for i in body:
+            for a in wing:
+                spreadList.append(
+                    (a + i + stockPrice, i + stockPrice, stockPrice - i,
+                     stockPrice - a - i))
+
+        return spreadList
 
     #Function to get stock price from google finance
     def getStockPrice(self,stock):
@@ -33,9 +143,10 @@ class optionsData(object):
         data = data.reset_index()
         data= data.sort_values(['Expiry'], ascending=[True])
         data = data.reset_index()
-        data=data.drop(['index'], axis=1)
+        data= data.drop(['index'], axis=1)
         return data
 
+    #Remove unnecessary columns
     def removeData(self, df):
         for i in self.removeDataList:
             df=df.drop([i], axis=1)
@@ -67,6 +178,7 @@ class optionsData(object):
         df = pd.concat([dfCall, dfPut], axis=1)
         return df
 
+    #Remove all but the first 4 rows of data
     def editData(self, df):
         df =df[:4]
         return df
