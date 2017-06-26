@@ -16,25 +16,76 @@ class optionsData(object):
         df = self.getOptionsData("AAPL")
         df = self.removeData(df)
         df = self.calcStrikePrice(df)
+        self.count=0
+        #rint (type(df))
+        #print int( self.getStockPrice("AAPL"))
 
-        print (type(df))
-        print int( self.getStockPrice("AAPL"))
+        #fullDf is the fullDataframe that will be constructed which will hold
+        #  all the data
+        self.fullDf = pd.DataFrame()
+        self.uberDf = pd.DataFrame(columns=df.columns)
 
         #group by type
         df=df.groupby(by=['Expiry'])
 
+        #print df.count()
 
-        df = df.get_group('2017-06-30 00:00:00')
+        self.combinations = self.createCombinations()
+        self.dfList=[]
 
-        combinations=self.createCombinations()
-        #print combinations
-        myList=[]
-        myDf = pd.DataFrame(columns=df.columns)
-        fullDf = pd.DataFrame(columns=df.columns)
-        #print myDf
-        print combinations
-        #print df.values
-        for i in combinations:
+        count=0
+        for index, value in df:
+            #index is the date
+
+            # week DF is the dataframe for all entries within that week
+
+            weekDf = df.get_group(index)
+
+            #weekDf = weekDf.set_index([newList])
+            weekDf = self.calcCombinations(weekDf)
+
+            if weekDf.empty:
+                continue
+
+
+            #self.fullDf = self.fullDf.append(weekDf)
+            #self.fullDf=self.fullDf.append(weekDf)
+
+
+            #if len(weekDf.columns)<len (self.fullDf.columns):
+            #    weekDf = weekDf.assign (self.fullDf.columns=[])
+            #else:
+            #     self.fullDf = self.fullDf.assign (weekDf.columns=[])
+
+            #df = df.assign(age=[])
+
+            #weekDf.columns = self.fullDf.columns
+
+
+            self.dfList.append(weekDf)
+            concatAll = pd.concat(self.dfList,ignore_index=True)
+            #print concatAll
+            #self.fullDf= pd.concat([ self.fullDf,weekDf], axis=0)
+        #df = df.get_group('2017-06-30 00:00:00')
+
+
+        #print myDf.values  `
+        #for i in self.dfList:
+        #    print i
+        #    print len(i.columns)
+
+        #print self.fullDf
+        self.writeDataFrame(concatAll)
+
+    def calcCombinations(self, df):
+
+        #concatWeekDf is the concatenated dataframe for 1 of the possible
+        # combinations of spread
+        weekDf = pd.DataFrame(columns=df.columns)
+        concatWeekDf = pd.DataFrame(columns=df.columns)
+
+        for i in self.combinations:
+            self.count = self.count + 1
             if df.loc[(df['Strike'] == i[0]) & (df['Type'] == "call")].empty:
                 continue
             if df.loc[(df['Strike'] == i[1]) & (df['Type'] == "call")].empty:
@@ -44,31 +95,44 @@ class optionsData(object):
             if df.loc[(df['Strike'] == i[3]) & (df['Type'] == "put")].empty:
                 continue
 
-            row1=df.loc[(df['Strike'] == i[0]) & (df['Type'] =="call")]
+            row1=df.loc[(df['Strike'] == i[0]) & (df['Type'] == "call")]
             row2=df.loc[(df['Strike'] == i[1]) & (df['Type'] == "call")]
             row3=df.loc[(df['Strike'] == i[2]) & (df['Type'] == "put")]
             row4=df.loc[(df['Strike'] == i[3]) & (df['Type'] == "put")]
 
-            #print row1
-            #print row2
-            #print row3
-            #print row4
+            concatWeekDf = pd.concat([row1,row2,row3,row4], ignore_index=True)
 
-            myDf = pd.concat([row1,row2,row3,row4], ignore_index=True)
-            if fullDf.empty:
-                fullDf = myDf
+            #example renaming dataframe column
+            #>> > df = pd.DataFrame({'$a': [1, 2], '$b': [10, 20]})
+            #>> > df.columns = ['a', 'b']
+            if concatWeekDf.empty:
                 continue
-            fullDf = pd.concat([fullDf, myDf], axis=1)
+
+            #concatWeekDf.columns = ['Strike',
+            #                        'Expiry',
+            #                        'Type',
+            #                        'Last']
+
+            #if fullDf.empty:
+            #    fullDf = concatWeekDf
+            #    continue
+
+            #print concatWeekDf
+
+            weekDf = pd.concat([weekDf, concatWeekDf], axis=1)
+            #print concatWeekDf
+            #print self.fullDf
+            #print concatWeekDf
+            #print self.fullDf
+
+        return weekDf
 
 
-        print myDf.values
-        print fullDf.values
-        self.writeDataFrame(fullDf)
 
     #create all combinations for bodySpread
     def createCombinations(self):
-        body = range(1,50)
-        wing = range(1,4)
+        body = range(1,115)
+        wing = range(1,5)
         stockPrice= int(self.getStockPrice("AAPL"))
         spreadList = []
 
@@ -144,5 +208,13 @@ class optionsData(object):
         writer.save()
         print 'data written'
 
+    def save_xls(list_dfs, xls_path):
+        writer = ExcelWriter('C:/Users/sped\PycharmProjects/cboeData/output.xlsx')
+        for n, df in enumerate(list_dfs):
+            df.to_excel(writer, 'sheet%s' % n)
+        writer.save()
+
 
 a=optionsData()
+
+
