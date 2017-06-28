@@ -4,16 +4,21 @@ from pandas_datareader import data, wb
 from datetime import date, timedelta
 from pandas_datareader.data import Options
 import datetime
+import numpy as np
+import operator
+
 
 class optionsData(object):
     #Run all functions on instance creation
     def __init__(self):
+        self.stock ="MSFT"
+
         self.removeDataList=['Symbol','Chg','PctChg','IV','Root',
                              'IsNonstandard','Underlying','Underlying_Price',
                              'Quote_Time','Last_Trade_Date','JSON','Bid',
                              'Ask','Vol','Open_Int']
-        self.stockPrice = self.getStockPrice("AAPL")
-        df = self.getOptionsData("AAPL")
+        self.stockPrice = self.getStockPrice(self.stock)
+        df = self.getOptionsData(self.stock)
         df = self.removeData(df)
         df = self.calcStrikePrice(df)
         self.count=0
@@ -23,22 +28,23 @@ class optionsData(object):
         #fullDf is the fullDataframe that will be constructed which will hold
         #  all the data
         self.fullDf = pd.DataFrame()
-        self.uberDf = pd.DataFrame(columns=df.columns)
 
         #group by type
         df=df.groupby(by=['Expiry'])
+
 
         #print df.count()
 
         self.combinations = self.createCombinations()
         self.dfList=[]
+        columnList = []
 
         count=0
+
         for index, value in df:
             #index is the date
 
             # week DF is the dataframe for all entries within that week
-
             weekDf = df.get_group(index)
 
             #weekDf = weekDf.set_index([newList])
@@ -47,41 +53,44 @@ class optionsData(object):
             if weekDf.empty:
                 continue
 
-
-            #self.fullDf = self.fullDf.append(weekDf)
-            #self.fullDf=self.fullDf.append(weekDf)
-
-
-            #if len(weekDf.columns)<len (self.fullDf.columns):
-            #    weekDf = weekDf.assign (self.fullDf.columns=[])
-            #else:
-            #     self.fullDf = self.fullDf.assign (weekDf.columns=[])
-
-            #df = df.assign(age=[])
-
-            #weekDf.columns = self.fullDf.columns
-
-
             self.dfList.append(weekDf)
-            concatAll = pd.concat(self.dfList,ignore_index=True)
-            #print concatAll
-            #self.fullDf= pd.concat([ self.fullDf,weekDf], axis=0)
-        #df = df.get_group('2017-06-30 00:00:00')
+
+        #Find max number of columns in Dataframes
+        maxColumns = max([len(self.dfList[i].columns) for i in range(len(
+            self.dfList))])
+
+        '''
+        Re-order column list
+
+        '''
+
+        for i in self.dfList:
+            if len(i.columns) == maxColumns:
+                correctColumnList = list(i.columns)
 
 
-        #print myDf.values  `
-        #for i in self.dfList:
-        #    print i
-        #    print len(i.columns)
+        concatAll = pd.concat(self.dfList,ignore_index=True)
 
-        #print self.fullDf
+        important = correctColumnList
+        reordered = important + [c for c in concatAll.columns if
+                                 c not in important]
+        concatAll = concatAll[reordered]
+
+
+
+        columnsList = list(concatAll.columns)
+
+        #Write out data
         self.writeDataFrame(concatAll)
 
     def calcCombinations(self, df):
+        index=0
 
         #concatWeekDf is the concatenated dataframe for 1 of the possible
         # combinations of spread
-        weekDf = pd.DataFrame(columns=df.columns)
+
+        #weekDf = pd.DataFrame(columns=df.columns)
+        weekDf = pd.DataFrame()
         concatWeekDf = pd.DataFrame(columns=df.columns)
 
         for i in self.combinations:
@@ -95,45 +104,46 @@ class optionsData(object):
             if df.loc[(df['Strike'] == i[3]) & (df['Type'] == "put")].empty:
                 continue
 
-            row1=df.loc[(df['Strike'] == i[0]) & (df['Type'] == "call")]
-            row2=df.loc[(df['Strike'] == i[1]) & (df['Type'] == "call")]
-            row3=df.loc[(df['Strike'] == i[2]) & (df['Type'] == "put")]
-            row4=df.loc[(df['Strike'] == i[3]) & (df['Type'] == "put")]
+
+            row1=df.loc[(df['Strike'] == i[0]) & (df['Type'] ==
+                                                           "call")]
+            row2=df.loc[(df['Strike'] == i[1]) & (df['Type'] ==
+                                                           "call")]
+            row3=df.loc[(df['Strike'] == i[2]) & (df['Type'] ==
+                                                            "put")]
+            row4=df.loc[(df['Strike'] == i[3]) & (df['Type'] ==
+                                                            "put")]
+
 
             concatWeekDf = pd.concat([row1,row2,row3,row4], ignore_index=True)
 
-            #example renaming dataframe column
-            #>> > df = pd.DataFrame({'$a': [1, 2], '$b': [10, 20]})
-            #>> > df.columns = ['a', 'b']
+            #re-order columns
+            cols = list(concatWeekDf)
+            cols.insert(0, cols.pop(cols.index('Expiry')))
+            concatWeekDf = concatWeekDf.ix[:, cols]
+            concatWeekDf.columns=['Expiry{0}'.format(index), 'Strike{'
+                                                             '0}'.format(
+                index), 'Type{0}'.format(index), 'Last{0}'.format(index)]
+            index = index + 1
+
+
+            #Continue loop if combination is empty
             if concatWeekDf.empty:
                 continue
 
-            #concatWeekDf.columns = ['Strike',
-            #                        'Expiry',
-            #                        'Type',
-            #                        'Last']
 
-            #if fullDf.empty:
-            #    fullDf = concatWeekDf
-            #    continue
-
-            #print concatWeekDf
 
             weekDf = pd.concat([weekDf, concatWeekDf], axis=1)
-            #print concatWeekDf
-            #print self.fullDf
-            #print concatWeekDf
-            #print self.fullDf
+
+
 
         return weekDf
 
-
-
     #create all combinations for bodySpread
     def createCombinations(self):
-        body = range(1,115)
-        wing = range(1,5)
-        stockPrice= int(self.getStockPrice("AAPL"))
+        body=np.arange(1, 5, 0.5)
+        wing =np.arange(2, 3, 0.5)
+        stockPrice= int(self.getStockPrice(self.stock))
         spreadList = []
 
         # calculating calls
@@ -216,5 +226,3 @@ class optionsData(object):
 
 
 a=optionsData()
-
-
