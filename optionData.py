@@ -17,30 +17,55 @@ class optionsData(object):
                              'IsNonstandard','Underlying','Underlying_Price',
                              'Quote_Time','Last_Trade_Date','JSON','Bid',
                              'Ask','Vol','Open_Int']
+
         self.stockPrice = self.getStockPrice(self.stock)
         df = self.getOptionsData(self.stock)
         df = self.removeData(df)
         df = self.calcStrikePrice(df)
         self.count=0
-        #rint (type(df))
-        #print int( self.getStockPrice("AAPL"))
 
         #fullDf is the fullDataframe that will be constructed which will hold
         #  all the data
         self.fullDf = pd.DataFrame()
-
-        #group by type
-        df=df.groupby(by=['Expiry'])
-
-
-        #print df.count()
-
         self.combinations = self.createCombinations()
         self.dfList=[]
-        columnList = []
+        self.dfList=self.createWeekDfList(df)
 
-        count=0
+        maxColumns=self.findMaxColumns()
+        reordered = self.reorderColumns(maxColumns)
 
+        self.concatAll = self.concatAll[reordered]
+
+        # Write out data
+        self.writeDataFrame(self.concatAll)
+
+    def reorderColumns(self, maxColumns):
+        for i in self.dfList:
+            if len(i.columns) == maxColumns:
+                correctColumnList = list(i.columns)
+
+
+        self.concatAll = pd.concat(self.dfList,ignore_index=True)
+
+        important = correctColumnList
+        reordered = important + [c for c in self.concatAll.columns if
+                                 c not in important]
+        return reordered
+
+
+    def findMaxColumns(self):
+        #Find max number of columns in Dataframes
+        maxColumns = max([len(self.dfList[i].columns) for i in range(len(
+            self.dfList))])
+        return maxColumns
+
+    #This functin creates a list of the weeks of dataframes which will then
+    # be concatenated which makes up the final data.
+
+    def createWeekDfList(self, df):
+        df=df.groupby(by=['Expiry'])
+
+        #Loop through groups in datatframe
         for index, value in df:
             #index is the date
 
@@ -55,33 +80,8 @@ class optionsData(object):
 
             self.dfList.append(weekDf)
 
-        #Find max number of columns in Dataframes
-        maxColumns = max([len(self.dfList[i].columns) for i in range(len(
-            self.dfList))])
+        return self.dfList
 
-        '''
-        Re-order column list
-
-        '''
-
-        for i in self.dfList:
-            if len(i.columns) == maxColumns:
-                correctColumnList = list(i.columns)
-
-
-        concatAll = pd.concat(self.dfList,ignore_index=True)
-
-        important = correctColumnList
-        reordered = important + [c for c in concatAll.columns if
-                                 c not in important]
-        concatAll = concatAll[reordered]
-
-
-
-        columnsList = list(concatAll.columns)
-
-        #Write out data
-        self.writeDataFrame(concatAll)
 
     def calcCombinations(self, df):
         index=0
@@ -106,14 +106,17 @@ class optionsData(object):
 
 
             row1=df.loc[(df['Strike'] == i[0]) & (df['Type'] ==
-                                                           "call")]
+                                                  "call")]
             row2=df.loc[(df['Strike'] == i[1]) & (df['Type'] ==
-                                                           "call")]
+                                                  "call")]
             row3=df.loc[(df['Strike'] == i[2]) & (df['Type'] ==
-                                                            "put")]
+                                                  "put")]
             row4=df.loc[(df['Strike'] == i[3]) & (df['Type'] ==
-                                                            "put")]
+                                                  "put")]
 
+            lastTotal = row2+row3-row1-row4
+
+            ratio = ((row1-row2-lastTotal)+(row3-row4-lastTotal))/2*-1
 
             concatWeekDf = pd.concat([row1,row2,row3,row4], ignore_index=True)
 
@@ -130,7 +133,6 @@ class optionsData(object):
             #Continue loop if combination is empty
             if concatWeekDf.empty:
                 continue
-
 
 
             weekDf = pd.concat([weekDf, concatWeekDf], axis=1)
@@ -187,23 +189,6 @@ class optionsData(object):
                 df = df.drop([index], axis=0)
         return df
 
-    #Divide Call and Puts
-    def sepCallPuts(self, df):
-        dfCall=df
-        dfPut=df
-
-        for index, row in df.iterrows():
-            if df['Type'][index] == 'call':
-                dfPut = dfPut.drop([index], axis=0)
-            else:
-                dfCall = dfCall.drop([index], axis=0)
-
-        dfPut = dfPut.reset_index()
-        dfCall = dfCall.reset_index()
-        dfPut=dfPut.drop(['index'], axis=1)
-        dfCall=dfCall.drop(['index'], axis=1)
-        df = pd.concat([dfCall, dfPut], axis=1)
-        return df
 
     #Remove all but the first 4 rows of data
     def editData(self, df):
@@ -217,12 +202,5 @@ class optionsData(object):
         df.to_excel(writer, 'Sheet1')
         writer.save()
         print 'data written'
-
-    def save_xls(list_dfs, xls_path):
-        writer = ExcelWriter('C:/Users/sped\PycharmProjects/cboeData/output.xlsx')
-        for n, df in enumerate(list_dfs):
-            df.to_excel(writer, 'sheet%s' % n)
-        writer.save()
-
 
 a=optionsData()
