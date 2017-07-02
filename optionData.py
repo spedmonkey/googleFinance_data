@@ -1,12 +1,10 @@
 import pandas as pd
-import pandas.io
-from pandas_datareader import data, wb
+from pandas_datareader import data
 from datetime import date, timedelta
 from pandas_datareader.data import Options
 import datetime
 import numpy as np
-import operator
-
+import xlsxwriter
 
 class optionsData(object):
     #Run all functions on instance creation
@@ -21,6 +19,10 @@ class optionsData(object):
         self.stockPrice = self.getStockPrice(self.stock)
         df = self.getOptionsData(self.stock)
         df = self.removeData(df)
+
+        #editData removes all but the first 4 rows
+        #df =  self.editData(df)
+
         df = self.calcStrikePrice(df)
         self.count=0
 
@@ -39,6 +41,7 @@ class optionsData(object):
         # Write out data
         self.writeDataFrame(self.concatAll)
 
+
     def reorderColumns(self, maxColumns):
         for i in self.dfList:
             if len(i.columns) == maxColumns:
@@ -52,7 +55,6 @@ class optionsData(object):
                                  c not in important]
         return reordered
 
-
     def findMaxColumns(self):
         #Find max number of columns in Dataframes
         maxColumns = max([len(self.dfList[i].columns) for i in range(len(
@@ -61,7 +63,6 @@ class optionsData(object):
 
     #This functin creates a list of the weeks of dataframes which will then
     # be concatenated which makes up the final data.
-
     def createWeekDfList(self, df):
         df=df.groupby(by=['Expiry'])
 
@@ -81,7 +82,6 @@ class optionsData(object):
             self.dfList.append(weekDf)
 
         return self.dfList
-
 
     def calcCombinations(self, df):
         index=0
@@ -116,7 +116,7 @@ class optionsData(object):
 
             lastTotal = row2+row3-row1-row4
 
-            ratio = ((row1-row2-lastTotal)+(row3-row4-lastTotal))/2*-1
+            #ratio = ((row1-row2-lastTotal)+(row3-row4-lastTotal))/2*-1
 
             concatWeekDf = pd.concat([row1,row2,row3,row4], ignore_index=True)
 
@@ -192,13 +192,16 @@ class optionsData(object):
 
     #Remove all but the first 4 rows of data
     def editData(self, df):
-        df =df[:4]
+        print df
+        df =df[:20]
         return df
 
     #Write Data to excel spreadsheet
     def writeDataFrame(self,df):
         writer = pd.ExcelWriter(
-            'C:/Users/sped\PycharmProjects/cboeData/output.xlsx')
+            'C:/Users/sped\PycharmProjects/cboeData/output.xlsx',
+            engine='xlsxwriter',
+            datetime_format='mmm d yy')
         df.to_excel(writer, 'Sheet1')
         writer.save()
         print 'data written'
