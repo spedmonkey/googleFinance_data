@@ -9,7 +9,7 @@ import xlsxwriter
 class optionsData(object):
     #Run all functions on instance creation
     def __init__(self):
-        self.stock ="MSFT"
+        self.stock ="AAPL"
 
         self.removeDataList=['Symbol','Chg','PctChg','IV','Root',
                              'IsNonstandard','Underlying','Underlying_Price',
@@ -41,12 +41,11 @@ class optionsData(object):
         # Write out data
         self.writeDataFrame(self.concatAll)
 
-
+    #reoderColumns
     def reorderColumns(self, maxColumns):
         for i in self.dfList:
             if len(i.columns) == maxColumns:
                 correctColumnList = list(i.columns)
-
 
         self.concatAll = pd.concat(self.dfList,ignore_index=True)
 
@@ -55,11 +54,24 @@ class optionsData(object):
                                  c not in important]
         return reordered
 
+    #find the week with the maximum number of columns
     def findMaxColumns(self):
         #Find max number of columns in Dataframes
         maxColumns = max([len(self.dfList[i].columns) for i in range(len(
             self.dfList))])
         return maxColumns
+
+    def calcRiskRewardRatio(self, row1, row2, row3,row4, lastTotal):
+        ratio = ((row1-row2-lastTotal)+(row3-row4-lastTotal))/2*-1
+        return ratio
+
+    def calcLastTotal(self, row1, row2, row3,row4):
+        lastTotal = row2 + row3 - row1 - row4
+        return lastTotal
+
+    def normRatio(self, lastTotal, riskRewardRatio):
+        normRatio = ((1/lastTotal)*-riskRewardRatio)*-1
+        return normRatio
 
     #This functin creates a list of the weeks of dataframes which will then
     # be concatenated which makes up the final data.
@@ -85,12 +97,14 @@ class optionsData(object):
 
     def calcCombinations(self, df):
         index=0
-
+        weekDfList=[]
         #concatWeekDf is the concatenated dataframe for 1 of the possible
         # combinations of spread
 
         #weekDf = pd.DataFrame(columns=df.columns)
         weekDf = pd.DataFrame()
+
+
         concatWeekDf = pd.DataFrame(columns=df.columns)
 
         for i in self.combinations:
@@ -114,14 +128,25 @@ class optionsData(object):
             row4=df.loc[(df['Strike'] == i[3]) & (df['Type'] ==
                                                   "put")]
 
-            lastTotal = row2+row3-row1-row4
 
-            #ratio = ((row1-row2-lastTotal)+(row3-row4-lastTotal))/2*-1
+            row1Last =  row1['Last'].values[0]
+            row2Last =  row2['Last'].values[0]
+            row3Last =  row3['Last'].values[0]
+            row4Last =  row4['Last'].values[0]
 
             concatWeekDf = pd.concat([row1,row2,row3,row4], ignore_index=True)
 
-            #re-order columns
+            #re-order columns pop Expiry to the front of column list
             cols = list(concatWeekDf)
+
+
+            total = self.calcLastTotal(row1Last,row2Last,row3Last,row4Last)
+            ratio = self.calcRiskRewardRatio(row1Last,row2Last,row3Last,
+                                             row4Last, total)
+            normRatio = self.normRatio(total,ratio)
+
+
+
             cols.insert(0, cols.pop(cols.index('Expiry')))
             concatWeekDf = concatWeekDf.ix[:, cols]
             concatWeekDf.columns=['Expiry{0}'.format(index), 'Strike{'
@@ -130,15 +155,17 @@ class optionsData(object):
             index = index + 1
 
 
+            concatWeekDf['total{0}'.format(index)]= total
+            concatWeekDf['ratio{0}'.format(index)]=ratio
+            concatWeekDf['normratio{0}'.format(index)] = normRatio
+
+
+
             #Continue loop if combination is empty
             if concatWeekDf.empty:
                 continue
 
-
             weekDf = pd.concat([weekDf, concatWeekDf], axis=1)
-
-
-
         return weekDf
 
     #create all combinations for bodySpread
