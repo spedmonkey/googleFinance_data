@@ -9,15 +9,21 @@ import xlsxwriter
 class optionsData(object):
     #Run all functions on instance creation
     def __init__(self):
-        self.stock ="AAPL"
+        '''
+        Global variabls:
+        '''
 
+        #global variabls: columns to remove
         self.removeDataList=['Symbol','Chg','PctChg','IV','Root',
                              'IsNonstandard','Underlying','Underlying_Price',
                              'Quote_Time','Last_Trade_Date','JSON','Bid',
                              'Ask','Vol','Open_Int']
+        #global variable stock:
+        self.stock ='MSFT'
+        self.outputFile = 'C:/Users/sped/PycharmProjects/cboeData/output.xlsx'
+        self.stockPrice = self.getStockPrice()
 
-        self.stockPrice = self.getStockPrice(self.stock)
-        df = self.getOptionsData(self.stock)
+        df = self.getOptionsData()
         df = self.removeData(df)
 
         #editData removes all but the first 4 rows
@@ -145,14 +151,11 @@ class optionsData(object):
                                              row4Last, total)
             normRatio = self.normRatio(total,ratio)
 
-
-
             cols.insert(0, cols.pop(cols.index('Expiry')))
             concatWeekDf = concatWeekDf.ix[:, cols]
             concatWeekDf.columns=['Expiry{0}'.format(index), 'Strike{'
                                                              '0}'.format(
                 index), 'Type{0}'.format(index), 'Last{0}'.format(index)]
-            index = index + 1
 
 
             concatWeekDf['total{0}'.format(index)]= total
@@ -160,19 +163,19 @@ class optionsData(object):
             concatWeekDf['normratio{0}'.format(index)] = normRatio
 
 
-
             #Continue loop if combination is empty
             if concatWeekDf.empty:
                 continue
 
             weekDf = pd.concat([weekDf, concatWeekDf], axis=1)
+            index = index + 1
         return weekDf
 
     #create all combinations for bodySpread
     def createCombinations(self):
         body=np.arange(1, 5, 0.5)
         wing =np.arange(2, 3, 0.5)
-        stockPrice= int(self.getStockPrice(self.stock))
+        stockPrice= int(self.getStockPrice())
         spreadList = []
 
         # calculating calls
@@ -185,16 +188,16 @@ class optionsData(object):
         return spreadList
 
     #Function to get stock price from google finance
-    def getStockPrice(self,stock):
+    def getStockPrice(self):
         start = date.today() - timedelta(7)
         end= datetime.datetime.today().strftime('%Y-%m-%d')
-        stockData = data.DataReader(stock, "google", start, end)
+        stockData = data.DataReader(self.stock, "google", start, end)
         stockPrice = stockData.iloc[[-1]]['Close'].values[0]
         return stockPrice
 
     #Get option data from yahoo finance
-    def getOptionsData(self,optionIndex):
-        optionIndex = Options(optionIndex, 'yahoo')
+    def getOptionsData(self):
+        optionIndex = Options(self.stock, 'yahoo')
         data = optionIndex.get_all_data()
         data = data.reset_index()
         data= data.sort_values(['Expiry'], ascending=[True])
@@ -226,7 +229,7 @@ class optionsData(object):
     #Write Data to excel spreadsheet
     def writeDataFrame(self,df):
         writer = pd.ExcelWriter(
-            'C:/Users/sped\PycharmProjects/cboeData/output.xlsx',
+            self.outputFile,
             engine='xlsxwriter',
             datetime_format='mmm d yy')
         df.to_excel(writer, 'Sheet1')
