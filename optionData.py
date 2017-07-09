@@ -36,24 +36,39 @@ class optionsData(object):
         #  all the data
         self.fullDf = pd.DataFrame()
         self.combinations = self.createCombinations()
-        self.dfList=[]
-        self.dfList=self.createWeekDfList(df)
+        dfList=[]
+        #self.dfList=self.createWeekDfList(df)
+        dfExpiry = self.groupByExpiry(df)
 
-        maxColumns=self.findMaxColumns()
-        reordered = self.reorderColumns(maxColumns)
+        #Loop through groups in datatframe
+        for index, value in dfExpiry:
+            #index is the date
 
-        self.concatAll = self.concatAll[reordered]
+            # week DF is the dataframe for all entries within that week
+            weekDf = dfExpiry.get_group(index)
+            weekDf = self.calcWeek(weekDf)
+
+            if weekDf.empty:
+                continue
+            dfList.append(weekDf)
+
+        maxColumns=self.findMaxColumns(dfList)
+        reordered = self.reorderColumns(maxColumns, dfList)
+
+        weekDf = pd.concat(dfList, axis=0)
+
+        weekDf = weekDf[reordered]
 
         # Write out data
-        self.writeDataFrame(self.concatAll)
+        self.writeDataFrame(weekDf)
 
     #reoderColumns
-    def reorderColumns(self, maxColumns):
-        for i in self.dfList:
+    def reorderColumns(self, maxColumns, dfList):
+        for i in dfList:
             if len(i.columns) == maxColumns:
                 correctColumnList = list(i.columns)
 
-        self.concatAll = pd.concat(self.dfList,ignore_index=True)
+        self.concatAll = pd.concat(dfList,ignore_index=True)
 
         important = correctColumnList
         reordered = important + [c for c in self.concatAll.columns if
@@ -61,10 +76,9 @@ class optionsData(object):
         return reordered
 
     #find the week with the maximum number of columns
-    def findMaxColumns(self):
+    def findMaxColumns(self, dfList):
         #Find max number of columns in Dataframes
-        maxColumns = max([len(self.dfList[i].columns) for i in range(len(
-            self.dfList))])
+        maxColumns = max([len(dfList[i].columns) for i in range(len(dfList))])
         return maxColumns
 
     def calcRiskRewardRatio(self, row1, row2, row3,row4, lastTotal):
@@ -101,7 +115,11 @@ class optionsData(object):
 
         return self.dfList
 
-    def calcCombinations(self, df):
+    def groupByExpiry(self, df):
+        df=df.groupby(by=['Expiry'])
+        return df
+
+    def calcWeek(self, df):
         index=0
         weekDfList=[]
         #concatWeekDf is the concatenated dataframe for 1 of the possible
@@ -115,6 +133,7 @@ class optionsData(object):
 
         for i in self.combinations:
             self.count = self.count + 1
+            #Filters to remove unwanted values
             if df.loc[(df['Strike'] == i[0]) & (df['Type'] == "call")].empty:
                 continue
             if df.loc[(df['Strike'] == i[1]) & (df['Type'] == "call")].empty:
@@ -124,16 +143,10 @@ class optionsData(object):
             if df.loc[(df['Strike'] == i[3]) & (df['Type'] == "put")].empty:
                 continue
 
-
-            row1=df.loc[(df['Strike'] == i[0]) & (df['Type'] ==
-                                                  "call")]
-            row2=df.loc[(df['Strike'] == i[1]) & (df['Type'] ==
-                                                  "call")]
-            row3=df.loc[(df['Strike'] == i[2]) & (df['Type'] ==
-                                                  "put")]
-            row4=df.loc[(df['Strike'] == i[3]) & (df['Type'] ==
-                                                  "put")]
-
+            row1=df.loc[(df['Strike'] == i[0]) & (df['Type'] =="call")]
+            row2=df.loc[(df['Strike'] == i[1]) & (df['Type'] =="call")]
+            row3=df.loc[(df['Strike'] == i[2]) & (df['Type'] =="put")]
+            row4=df.loc[(df['Strike'] == i[3]) & (df['Type'] =="put")]
 
             row1Last =  row1['Last'].values[0]
             row2Last =  row2['Last'].values[0]
@@ -145,29 +158,25 @@ class optionsData(object):
             #re-order columns pop Expiry to the front of column list
             cols = list(concatWeekDf)
 
-
             total = self.calcLastTotal(row1Last,row2Last,row3Last,row4Last)
-            ratio = self.calcRiskRewardRatio(row1Last,row2Last,row3Last,
-                                             row4Last, total)
+            ratio = self.calcRiskRewardRatio(row1Last,row2Last,row3Last,row4Last, total)
             normRatio = self.normRatio(total,ratio)
 
             cols.insert(0, cols.pop(cols.index('Expiry')))
             concatWeekDf = concatWeekDf.ix[:, cols]
-            concatWeekDf.columns=['Expiry{0}'.format(index), 'Strike{'
-                                                             '0}'.format(
+            concatWeekDf.columns=['Expiry{0}'.format(index), 'Strike{0}'.format(
                 index), 'Type{0}'.format(index), 'Last{0}'.format(index)]
-
 
             concatWeekDf['total{0}'.format(index)]= total
             concatWeekDf['ratio{0}'.format(index)]=ratio
             concatWeekDf['normratio{0}'.format(index)] = normRatio
-
 
             #Continue loop if combination is empty
             if concatWeekDf.empty:
                 continue
 
             weekDf = pd.concat([weekDf, concatWeekDf], axis=1)
+            #weekDfList = weekDfList.append(concatWeekDf)
             index = index + 1
         return weekDf
 
