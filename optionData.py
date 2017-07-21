@@ -18,10 +18,11 @@ class optionsData(object):
                              'IsNonstandard','Underlying','Underlying_Price',
                              'Quote_Time','Last_Trade_Date','JSON','Bid',
                              'Ask','Vol','Open_Int']
+
         #global variable stock:
-        self.stock ='MSFT'
+        self.stock ='AAPL'
         self.outputFile = 'C:/Users/sped/PycharmProjects/cboeData/output.xlsx'
-        self.stockPrice = self.getStockPrice()
+        #self.stockPrice = self.getStockPrice()
 
         df = self.getOptionsData()
         df = self.removeData(df)
@@ -29,7 +30,7 @@ class optionsData(object):
         #editData removes all but the first 4 rows
         #df =  self.editData(df)
 
-        df = self.calcStrikePrice(df)
+        #df = self.calcStrikePrice(df)
         self.count=0
 
         #fullDf is the fullDataframe that will be constructed which will hold
@@ -39,9 +40,19 @@ class optionsData(object):
         dfList=[]
         #self.dfList=self.createWeekDfList(df)
         dfExpiry = self.groupByExpiry(df)
-
+        firstWeeksList = self.getFirstWeeks(dfExpiry)
+        print 'Testing these weeks ', firstWeeksList
         #Loop through groups in datatframe
         for index, value in dfExpiry:
+            #print firstWeeksList
+            #print type(firstWeeksList)
+            #print index
+            #print firstWeeksList
+            if str(index) not in firstWeeksList:
+                #print index, firstWeeksList
+                continue
+            #print index, firstWeeksList
+            #print index
             #index is the date
 
             # week DF is the dataframe for all entries within that week
@@ -52,15 +63,27 @@ class optionsData(object):
                 continue
             dfList.append(weekDf)
 
-        maxColumns=self.findMaxColumns(dfList)
-        reordered = self.reorderColumns(maxColumns, dfList)
+        if dfList != []:
+            maxColumns=self.findMaxColumns(dfList)
+            reordered = self.reorderColumns(maxColumns, dfList)
 
-        weekDf = pd.concat(dfList, axis=0)
+            weekDf = pd.concat(dfList, axis=0)
 
-        weekDf = weekDf[reordered]
+            weekDf = weekDf[reordered]
 
-        # Write out data
-        self.writeDataFrame(weekDf)
+            # Write out data
+            self.writeDataFrame(weekDf)
+        else:
+            print 'No combinations found'
+
+
+    def getFirstWeeks(self,df):
+        weekList=[]
+        for index, value in df:
+            #print index, type(index)
+            #print str(index)
+            weekList.append(str(index))
+        return weekList[:4]
 
     #reoderColumns
     def reorderColumns(self, maxColumns, dfList):
@@ -117,6 +140,9 @@ class optionsData(object):
 
     def groupByExpiry(self, df):
         df=df.groupby(by=['Expiry'])
+        #df.sort_values('Expiry', ascending=True)
+        #df = df.sort_values(['Expiry'], ascending=[True])
+        #df = df.reset_index()
         return df
 
     def calcWeek(self, df):
@@ -182,8 +208,8 @@ class optionsData(object):
 
     #create all combinations for bodySpread
     def createCombinations(self):
-        body=np.arange(1, 5, 0.5)
-        wing =np.arange(2, 3, 0.5)
+        body=np.arange(3,5, 0.5)
+        wing =np.arange(2,3, 0.5)
         stockPrice= int(self.getStockPrice())
         spreadList = []
 
@@ -193,7 +219,7 @@ class optionsData(object):
                 spreadList.append(
                     (a + i + stockPrice, i + stockPrice, stockPrice - i,
                      stockPrice - a - i))
-
+        print 'Testing these spread combinations ',spreadList
         return spreadList
 
     #Function to get stock price from google finance
@@ -202,6 +228,7 @@ class optionsData(object):
         end= datetime.datetime.today().strftime('%Y-%m-%d')
         stockData = data.DataReader(self.stock, "google", start, end)
         stockPrice = stockData.iloc[[-1]]['Close'].values[0]
+        print 'Curent stock price ', stockPrice
         return stockPrice
 
     #Get option data from yahoo finance
@@ -232,7 +259,7 @@ class optionsData(object):
     #Remove all but the first 4 rows of data
     def editData(self, df):
         print df
-        df =df[:20]
+        df =df[:4]
         return df
 
     #Write Data to excel spreadsheet
