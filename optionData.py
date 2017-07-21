@@ -219,7 +219,8 @@ class optionsData(object):
                 spreadList.append(
                     (a + i + stockPrice, i + stockPrice, stockPrice - i,
                      stockPrice - a - i))
-        print 'Testing these spread combinations ',spreadList
+        print 'Testing these spread combinations, the first 2 numbers are ' \
+              'calls the second 2 numbers are puts',spreadList
         return spreadList
 
     #Function to get stock price from google finance
