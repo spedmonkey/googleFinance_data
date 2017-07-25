@@ -210,6 +210,9 @@ class optionsData(object):
     def createCombinations(self):
         price=int(self.getStockPrice())
 
+
+
+        #ENTER BODY AND SPREAD HERE
         body = [2,2.5,3]
         wing = [1,1.5,2,2.5]
 
