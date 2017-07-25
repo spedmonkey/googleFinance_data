@@ -5,7 +5,8 @@ from pandas_datareader.data import Options
 import datetime
 import numpy as np
 import xlsxwriter
-#best test ever
+import itertools
+
 class optionsData(object):
     #Run all functions on instance creation
     def __init__(self):
@@ -75,7 +76,6 @@ class optionsData(object):
             self.writeDataFrame(weekDf)
         else:
             print 'No combinations found'
-
 
     def getFirstWeeks(self,df):
         weekList=[]
@@ -208,20 +208,27 @@ class optionsData(object):
 
     #create all combinations for bodySpread
     def createCombinations(self):
-        body=np.arange(3,5, 0.5)
-        wing =np.arange(2,3, 0.5)
-        stockPrice= int(self.getStockPrice())
-        spreadList = []
+        price=int(self.getStockPrice())
 
-        # calculating calls
+        body = [2,2.5,3]
+        wing = [1,1.5,2,2.5]
+
+
+        body = list(itertools.permutations(body, 2))
+        wing = list(itertools.permutations(wing, 2))
+        bodyList = []
+        # print body
+        comboList = []
         for i in body:
+            bodyList.append((i[0] + price, price - i[1]))
+
+        for i in bodyList:
             for a in wing:
-                spreadList.append(
-                    (a + i + stockPrice, i + stockPrice, stockPrice - i,
-                     stockPrice - a - i))
-        print 'Testing these spread combinations, the first 2 numbers are ' \
-              'calls the second 2 numbers are puts',spreadList
-        return spreadList
+                comboList.append((i[0] + a[0], i[0], i[1], i[1] - a[1]))
+        print "TESTING THESE COMBINATIONS"
+        for i in comboList:
+            print i
+        return comboList
 
     #Function to get stock price from google finance
     def getStockPrice(self):
